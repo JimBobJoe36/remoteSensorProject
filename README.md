@@ -1,5 +1,5 @@
 # Remote Sensor Project
-This project controls a `Raspberry Pi Pico W`, 
+This project controls a `Raspberry Pi Pico W`, and transmits the temperature over Wi-Fi using MQTT protocol.
 
 # External Links
 ## Engineering Lifecycle Report 
