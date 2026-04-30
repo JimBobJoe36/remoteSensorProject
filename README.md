@@ -1,2 +1,7 @@
-# Engineering 301 -- Final Project
-This repo stores the code for our final project in the class, Engineering 301.
+# Remote Sensor Project
+This project controls a `Raspberry Pi Pico W`, 
+
+# External Links
+## Engineering Lifecycle Report 
+- Title Page
+- [Sections 1-3](https://docs.google.com/document/d/1Hs8fLArEBZNeXsnbG2oIipu8H1BaN9GOZskhaf2AvL4/edit?usp=sharing)
