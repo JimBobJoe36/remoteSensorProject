@@ -1,7 +1,17 @@
 # Remote Sensor Project
-This project controls a `Raspberry Pi Pico W`, and transmits the temperature over Wi-Fi using MQTT protocol.
+This project controls a `Raspberry Pi Pico W`, and transmits the temperature over Wi-Fi using `MQTT` protocol.
+
+*No Artificial Intelligence was used in the creation of this project*
 
 # External Links
 ## Engineering Lifecycle Report 
 - Title Page
 - [Sections 1-3](https://docs.google.com/document/d/1Hs8fLArEBZNeXsnbG2oIipu8H1BaN9GOZskhaf2AvL4/edit?usp=sharing)
+- [Sections 4-5](https://docs.google.com/document/d/1aQwPDSWB4fesHrL8Y3xyr2fF6jzOjR0OZWXsyGIdcSM/edit?usp=sharing)
+- Sections 6-10
+- Sections 11-12
+
+## Library Documentation
+- [MicroPython](https://docs.micropython.org/en/latest/index.html) - Documentation on MicroPython
+- [OLED Screens](https://docs.micropython.org/en/latest/esp8266/tutorial/ssd1306.html) - Documentation on how to use an SSD1306 OLED Screen
+- [Picozero](https://picozero.readthedocs.io/en/latest/index.html) - Documentation on the Picozero Library
