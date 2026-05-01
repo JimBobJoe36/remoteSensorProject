@@ -15,3 +15,4 @@ This project controls a `Raspberry Pi Pico W`, and transmits the temperature ove
 - [MicroPython](https://docs.micropython.org/en/latest/index.html) - Documentation on MicroPython
 - [OLED Screens](https://docs.micropython.org/en/latest/esp8266/tutorial/ssd1306.html) - Documentation on how to use an SSD1306 OLED Screen
 - [Picozero](https://picozero.readthedocs.io/en/latest/index.html) - Documentation on the Picozero Library
+- [MQTT Basics](https://mqtt.org/getting-started/) - Documentation on the basics of MQTT messaging
