@@ -19,3 +19,7 @@ This project controls a `Raspberry Pi Pico W`, and transmits the temperature ove
 - [Pub/Sub Architecture](https://www.geeksforgeeks.org/system-design/what-is-pub-sub/) - Documentation on the publisher/subscriber architecture used in the MQTT protocol.
 - [RFID RC522](https://how2electronics.com/using-rc522-rfid-reader-module-with-raspberry-pi-pico/) - Documentation on how to use the RFID RC522 Reader Module with a Raspberry Pi Pico.
 - [Rotary Encoder](https://www.upesy.com/blogs/tutorials/rotary-encoder-raspberry-pi-pico-on-micro-python) - Documentation on how to use the KY-040 Rotary Encoder Module with a Raspberry Pi Pico. 
+- [Rotary Encoder #2](https://github.com/miketeachman/micropython-rotary/tree/master) - Code we used for the Rotary Encoder
+    - [rotary_irq_esp.py](./rotary_irq_esp.py)
+    - [rotary.py](./rotary.py)
+- [Rotary Encoder Pins](https://docs.wokwi.com/parts/wokwi-ky-040) - Pins for the Rotary Encoder

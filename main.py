@@ -1,71 +1,87 @@
-from time import sleep
-sleep(5) # this sleep is required for stability
-import network
-import json
-from umqtt.robust import MQTTClient
-from mfrc522 import MFRC522
-from picozero import RGBLED
-from machine import ADC
+############################################################
+#################### IMPORT LIBRARIES ######################
+############################################################
+from time import sleep, ticks_ms           # <<< DO NOT MODIFY >>>
+sleep(5) # required for stability          # <<< DO NOT MODIFY >>>
+
+# Imports for MQTT communication           # <<< DO NOT MODIFY >>>
+import network                             # <<< DO NOT MODIFY >>>
+import json                                # <<< DO NOT MODIFY >>>
+from umqtt.robust import MQTTClient        # <<< DO NOT MODIFY >>>
+from rotary_irq_esp import RotaryIRQ
+from picozero import RGBLED, Button
+from machine import ADC, Pin
 from math import log
+from mfrc522 import MFRC522
+# Imports the library to make a random number. This is used to
+#    create a psuedo temperature value to transmit for demo
+#    purposes. You don't need this library for the project.
+import random
 
-def startWifiConnection(SSID, PASSWORD):
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    wlan.config(pm = 0xa11140) # disable Wi-Fi low power mode
-    timeout = 10
-    print("Attempting to connect to Wi-Fi")
+############################################################
+################# SPECIFY PINS AND OBJECTS #################
+############################################################
 
-    while not wlan.isconnected() and timeout > 0:
-        wlan.connect(SSID, PASSWORD)
-        timeout -= 1
-        sleep(1)
+rot = RotaryIRQ(pin_num_clk=12, 
+              pin_num_dt=13, 
+              min_val=0, 
+              max_val=5, 
+              reverse=False, 
+              range_mode=RotaryIRQ.RANGE_WRAP)
 
-    sleep(2)
-    print("Connected to Wi-Fi!")
+rotDt = Pin(19)
+rotClk = Pin(18)
+button = Button(20)
 
-def startBrokerConnection():
-    # connect to MQTT broker with reconnect support
-    global client
-    client = MQTTClient(f"client_{SENSOR_ID}", MQTT_BROKER)
-    client.DEBUG = True
+reader = MFRC522(spi_id=0,sck=6,miso=4,mosi=7,cs=5,rst=22)
+allowedRfids = ["placeholder"]
 
-    try:
-        client.connect()
-        print("Connected to MQTT broker!")
-    except Exception as e:
-        print("Failed to connect to MQTT broker:", e)
+thermistor = ADC(28) # Currently 28, could be set to whatever
 
-def sendMqttPayload(SENSOR_ID, temperature_sensor_reading):
-    message_data = {
-        "sensorID": SENSOR_ID,
-        "temperatureReading": temperature_sensor_reading
-    }
-    message_json = json.dumps(message_data)
+led = RGBLED(6,7,8)
 
-    try:
-        client.publish(TOPIC, message_json, retain=True)
-        print(f"Published: {message_json}")
-    except Exception as e:
-        print("Publish failed:",e)
+############################################################
+##################### OTHER SETUP STUFF ####################
+############################################################
 
-def getRfidReading(reader, allowedIds):
-    while True:
-        reader.init()
-        (status, tag_type) = reader.request(reader.REQIDL)
+# Wi-Fi and MQTT settings
+SSID = "WilfongEngr301" # Raspberry Pi 4 Wi-Fi name                               # <<< DO NOT MODIFY >>>
+PASSWORD = "BoilerUp" # Raspberry Pi 4 Wi-Fi password, WPA/WPA2 security          # <<< DO NOT MODIFY >>>
+MQTT_BROKER = "10.42.0.1"  # Raspberry Pi 4's IP                                  # <<< DO NOT MODIFY >>>
+TOPIC = "pico/data" # "pico/data" is just a label                                 # <<< DO NOT MODIFY >>>
+                    # It helps organize messages, like folders in a file system.  # <<< DO NOT MODIFY >>>
+                    # The TOPIC could be any string, but leave it as "pico/data"  # <<< DO NOT MODIFY >>>
 
-        if status == reader.OK:
-            (status, uid) = reader.SelectTagSN()
+SENSOR_ID = "Team02"  # !!!-- CHANGE THIS AS DIRECTED BY DR. WILFONG --!!!
 
-        if status == reader.OK:
-            cardId = str(int.from_bytes(bytes(uid),"little",False))
+# Connect to Wi-Fi                                          # <<< DO NOT MODIFY >>>
+wlan = network.WLAN(network.STA_IF)                         # <<< DO NOT MODIFY >>>
+wlan.active(True)                                           # <<< DO NOT MODIFY >>>
+wlan.config(pm = 0xa11140) # disable Wi-Fi low power mode   # <<< DO NOT MODIFY >>>
+wlan.connect(SSID, PASSWORD)                                # <<< DO NOT MODIFY >>>
 
-        if cardId in allowedIds:
-            return True
-        else:
-            return False
+print("Attempting to connect to Wi-Fi")
+while not wlan.isconnected():                               # <<< DO NOT MODIFY >>>
+    pass                                                    # <<< DO NOT MODIFY >>>
 
-        sleep(.05)
+sleep(2)  # Extra delay for stability                       # <<< DO NOT MODIFY >>>
+print("Connected to Wi-Fi!")
 
+
+
+# Connect to MQTT broker with reconnect support         # <<< DO NOT MODIFY >>>
+client = MQTTClient(f"client_{SENSOR_ID}", MQTT_BROKER) # <<< DO NOT MODIFY >>>
+client.DEBUG = True                                     # <<< DO NOT MODIFY >>>
+
+# Try to connect to MQTT broker                         # <<< DO NOT MODIFY >>>
+try:                                                    # <<< DO NOT MODIFY >>>
+    client.connect()                                    # <<< DO NOT MODIFY >>>
+    print("Connected to MQTT broker!")
+except Exception as e:                                  # <<< DO NOT MODIFY >>>
+    print("Failed to connect to MQTT broker:", e)
+# -------------CODE HERE-------------------
+
+# Thermistor and Temperature
 def getTempC(thermistor):
     '''
     This function returns a temperature in Celsius from an analog pin
@@ -85,26 +101,91 @@ def getTempC(thermistor):
     tempK = 1 / (A + (B * log(Rt)) + (C * pow(log(Rt), 3)))
     return (tempK - 273.15)
 
-SSID = "WilfongEngr301"
-PASSWORD = "BoilerUp"
-MQTT_BROKER = "10.42.0.1"
-TOPIC = "pico/data" # pico/data is the label that the subscriber (server) will look for
-SENSOR_ID = "Team02"
 
-reader = MFRC522(spi_id=0,sck=6,miso=4,mosi=7,cs=5,rst=22)
-allowedRfids = ["placeholder"]
+# RFID and Badge Reading
+def getRfidReading(reader, allowedIds):
+    while True:
+        reader.init()
+        (status, tag_type) = reader.request(reader.REQIDL)
 
-redPin = 6
-greenPin = 7
-bluePin = 8
-led = RGBLED(redPin, greenPin, bluePin)
-led.color = (255, 0, 0)
+        if status == reader.OK:
+            (status, uid) = reader.SelectTagSN()
 
-thermistor = ADC(27) # Change 27 to whatever analog pin is connected
+        if status == reader.OK:
+            cardId = str(int.from_bytes(bytes(uid),"little",False))
 
+        if cardId in allowedIds:
+            return True
+        else:
+            return False
+
+        sleep(.05)
+
+# Change LED Based on ___
+def setLED(rgb: RGBLED):
+    # TODO Set LED based on "error" codes (temp state)
+    pass
+
+# Unlock
+def unlock():
+    if button.is_active:
+        print("Button Pressed")
+    pass
+# -----------------------------------------------------
+############################################################
+####################### INFINITE LOOP ######################
+############################################################
+unlocked = False
+combination = "13579"
+# TODO Replace all print statements
 while True: 
-    # must use this variable name for temperature reading
+    # !!!-- Psuedo temperature sensor reading between 50 and 55 --!!!
+    # !!!-- You must use this variable name: temperature_sensor_reading --!!!
+    # !!!-- Currently, the temperature reading is just a random number for demo purposes --!!!
+    currentTime = ticks_ms()
     temperature_sensor_reading = getTempC(thermistor)
-
-    sleep(2)
-
+    # --------------------CODE HERE-------------------------------
+    # Unlock Check
+    # TODO Add RFID proof to this for extra security
+    if unlocked == True:
+        # OLED should display temperature data here
+        if (currentTime - ticks_ms()) > (5*(60*1000)):
+            # OLED should display temperature data here
+            pass
+        else:
+            # Locks after 5 minutes
+            unlocked = False
+    else:
+        # NOTE May need to put this in the "while" loop. The combination is specified on line 139.
+        #while True:
+        val_new = rot.value()
+        if val_old != val_new:
+            val_old = val_new
+            print('result =', val_new)
+        if button.is_active == False and oldButton == True:
+            print("Button Pressed")
+            inp += str(val_old)
+            if len(inp) == len(combination):
+                if inp == combination:
+                    break
+                else:
+                    print("Wrong combination!")
+                    inp = ""
+        oldButton = button.is_active
+        sleep(0.25)
+    # ------------------------------------------------------------
+    # Create and send MQTT payload                               # <<< DO NOT MODIFY >>>
+    message_data = {                                             # <<< DO NOT MODIFY >>>
+        "sensorID": SENSOR_ID,                                   # <<< DO NOT MODIFY >>>
+        "temperatureReading": temperature_sensor_reading         # <<< DO NOT MODIFY >>>
+    }                                                            # <<< DO NOT MODIFY >>>
+    message_json = json.dumps(message_data)  # Convert to JSON   # <<< DO NOT MODIFY >>>
+    
+    # Try to publish message to MQTT broker                                    # <<< DO NOT MODIFY >>>
+    try:                                                                       # <<< DO NOT MODIFY >>>
+        client.publish(TOPIC, message_json, retain=True) # Send MQTT payload   # <<< DO NOT MODIFY >>>
+        print(f"Published: {message_json}") # Print MQTT payload to the Shell
+    except Exception as e:                                                     # <<< DO NOT MODIFY >>>
+        print("Publish failed:",e)
+    
+    sleep(2) # Send MQTT payload every 2 seconds
