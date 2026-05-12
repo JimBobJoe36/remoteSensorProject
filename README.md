@@ -5,11 +5,11 @@ This project controls a `Raspberry Pi Pico W`, and transmits the temperature ove
 
 # External Links
 ## Engineering Lifecycle Report 
-- Title Page
+- [Title Page](https://docs.google.com/document/d/1ni5a2qKmEPr1L499QDIyZlSmApeSx9EjVmRKJKaLUhc/edit?usp=sharing)
 - [Sections 1-3](https://docs.google.com/document/d/1Hs8fLArEBZNeXsnbG2oIipu8H1BaN9GOZskhaf2AvL4/edit?usp=sharing)
 - [Sections 4-5](https://docs.google.com/document/d/1aQwPDSWB4fesHrL8Y3xyr2fF6jzOjR0OZWXsyGIdcSM/edit?usp=sharing)
 - [Sections 6-10](https://docs.google.com/document/d/1_amp79tRiRRS_5CvohyTlGhUuYJnrwNzfat3Uwesn88/edit?usp=sharing)
-- Sections 11-12
+- [Sections 11-12](https://docs.google.com/document/d/1Bva-qvY03r8IftYiyTljkeMu7JJrrrf_vdDEOaPBbT0/edit?usp=sharing)
 
 ## Library Documentation
 - [MicroPython](https://docs.micropython.org/en/latest/index.html) - Documentation on MicroPython.
