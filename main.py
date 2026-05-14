@@ -131,9 +131,9 @@ def setLED(time, tempVal):
     # TODO Set LED based on "error" codes (temp state)
     # green = functioning normally; red = abnomal value; blue = security re-check required soon
     if (ticks_ms() - time) > 4000:
-        led.color = (255,0,0)
-    elif tempVal > 30.0:
         led.color = (0,0,255)
+    elif (tempVal > 30.0) or (tempVal < 5.0):
+        led.color = (255,0,0)
     else:
         led.color = (0,255,0)
 
