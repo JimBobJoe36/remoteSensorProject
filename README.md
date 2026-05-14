@@ -10,6 +10,7 @@ This project controls a `Raspberry Pi Pico W`, and transmits the temperature ove
 - [Sections 4-5](https://docs.google.com/document/d/1aQwPDSWB4fesHrL8Y3xyr2fF6jzOjR0OZWXsyGIdcSM/edit?usp=sharing)
 - [Sections 6-10](https://docs.google.com/document/d/1_amp79tRiRRS_5CvohyTlGhUuYJnrwNzfat3Uwesn88/edit?usp=sharing)
 - [Sections 11-12](https://docs.google.com/document/d/1Bva-qvY03r8IftYiyTljkeMu7JJrrrf_vdDEOaPBbT0/edit?usp=sharing)
+- [Cybersecurity Sections](https://docs.google.com/document/d/1L1xj6n15f5qIlENOsO_-TxVrlZXvd2AaSYci4oT4Kgo/edit?tab=t.0#heading=h.u54hdonqd84a)
 
 ## Library Documentation
 - [MicroPython](https://docs.micropython.org/en/latest/index.html) - Documentation on MicroPython.
