@@ -125,6 +125,19 @@ def getRfidReading(reader, allowedIds):
 
         sleep(.05)
 
+
+def getRotaryInput(rot, combination):
+    actualCombination = ""
+    for i in range(len(combination)):
+        value = rot.value()
+        if button.is_active == False and oldButton == True:
+            actualCombination += str(value)
+        oldButton = button.is_active
+    if actualCombination == combination:
+        return True
+    else:
+        return False
+
 # Change LED Based on operational status
 def setLED(rgb: RGBLED):
     # TODO Set LED based on "error" codes (temp state)
@@ -148,53 +161,6 @@ while True:
     # !!!-- You must use this variable name: temperature_sensor_reading --!!!
     currentTime = ticks_ms()
     temperature_sensor_reading = getTempC(thermistor)
-    # --------------------CODE HERE-------------------------------
-    # Unlock Check
-    # TODO Add RFID proof to this for extra security
-    if unlocked == True:
-        if (currentTime - ticks_ms()) > (5*(60*1000)):
-            # OLED should display temperature data here
-            display.fill(0)
-            display.text(f"Temperature: {temperature_sensor_reading}", 0, 0)
-            display.show()
-        else:
-            # Locks after 5 minutes
-            unlocked = False
-    else:
-        actualCombination = ""
-        for i in range(len(combination)):
-            value = rot.value()
-            if button.is_active == False and oldButton == True:
-                actualCombination += str(value)
-            oldButton = button.is_active
-
-        if actualCombination == combination:
-            print("success")
-        else:
-            actualCombination = ""
-            print("failure")
-
-
-'''
-    else:
-        # NOTE May need to put this in the "while" loop.
-        #while True:
-        val_new = rot.value()
-        if val_old != val_new:
-            val_old = val_new
-            print('result =', val_new)
-        if button.is_active == False and oldButton == True:
-            print("Button Pressed")
-            inp += str(val_old)
-            if len(inp) == len(combination):
-                if inp == combination:
-                    break
-                else:
-                    print("Wrong combination!")
-                    inp = ""
-        oldButton = button.is_active
-        sleep(0.25)
-'''
 
     # ------------------------------------------------------------
     # Create and send MQTT payload                               # <<< DO NOT MODIFY >>>
@@ -204,11 +170,34 @@ while True:
     }                                                            # <<< DO NOT MODIFY >>>
     message_json = json.dumps(message_data)  # Convert to JSON   # <<< DO NOT MODIFY >>>
 
-    # Try to publish message to MQTT broker                                    # <<< DO NOT MODIFY >>>
-    try:                                                                       # <<< DO NOT MODIFY >>>
-        client.publish(TOPIC, message_json, retain=True) # Send MQTT payload   # <<< DO NOT MODIFY >>>
-        print(f"Published: {message_json}") # Print MQTT payload to the Shell
-    except Exception as e:                                                     # <<< DO NOT MODIFY >>>
-        print("Publish failed:",e)
     sleep(2) # Send MQTT payload every 2 seconds
+
+    # --------------------CODE HERE-------------------------------
+    idCheck = getRfidReading(reader, allowedRfids)
+    passwordCheck = getRotaryInput(rot, combination)
+
+    if idCheck && passwordCheck:
+        unlocked = True
+    else:
+        unlocked = False
+
+    if unlocked == True:
+        if (currentTime - ticks_ms()) > (5*(60*1000)):
+            # OLED should display temperature data here
+            display.fill(0)
+            display.text(f"Temperature: {temperature_sensor_reading}", 0, 0)
+            display.show()
+        else:
+            # Locks after 5 minutes
+            unlocked = False
+
+    if currentTime - ticks_ms() > 2000:
+        continue
+    else:
+        # Try to publish message to MQTT broker                                    # <<< DO NOT MODIFY >>>
+        try:                                                                       # <<< DO NOT MODIFY >>>
+            client.publish(TOPIC, message_json, retain=True) # Send MQTT payload   # <<< DO NOT MODIFY >>>
+            print(f"Published: {message_json}") # Print MQTT payload to the Shell
+        except Exception as e:                                                     # <<< DO NOT MODIFY >>>
+            print("Publish failed:",e)
 
