@@ -176,7 +176,7 @@ while True:
     idCheck = getRfidReading(reader, allowedRfids)
     passwordCheck = getRotaryInput(rot, combination)
 
-    if idCheck && passwordCheck:
+    if idCheck and passwordCheck:
         unlocked = True
     else:
         unlocked = False
