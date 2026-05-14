@@ -10,24 +10,22 @@ import json                                # <<< DO NOT MODIFY >>>
 from umqtt.robust import MQTTClient        # <<< DO NOT MODIFY >>>
 from rotary_irq_esp import RotaryIRQ
 from picozero import RGBLED, Button
-from machine import ADC, Pin
+from machine import ADC, Pin, I2C
 from math import log
 from mfrc522 import MFRC522
-# Imports the library to make a random number. This is used to
-#    create a psuedo temperature value to transmit for demo
-#    purposes. You don't need this library for the project.
-import random
+from ssd1306 import SSD1306_I2C
 
 ############################################################
 ################# SPECIFY PINS AND OBJECTS #################
 ############################################################
-
-rot = RotaryIRQ(pin_num_clk=12, 
-              pin_num_dt=13, 
-              min_val=0, 
-              max_val=5, 
-              reverse=False, 
-              range_mode=RotaryIRQ.RANGE_WRAP)
+rot = RotaryIRQ(
+    pin_num_clk=12, 
+    pin_num_dt=13, 
+    min_val=0, 
+    max_val=5, 
+    reverse=False, 
+    range_mode=RotaryIRQ.RANGE_WRAP
+)
 
 rotDt = Pin(19)
 rotClk = Pin(18)
@@ -39,6 +37,12 @@ allowedRfids = ["placeholder"]
 thermistor = ADC(28) # Currently 28, could be set to whatever
 
 led = RGBLED(6,7,8)
+
+# OLED object
+display_width = 128 # pixel x values = 0 to 127
+display_height = 64 # pixel y values = 0 to 63
+i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=400000) # TX pin is Pin 0, RX pin is Pin 1
+display = SSD1306_I2C(display_width, display_height, i2c)
 
 ############################################################
 ##################### OTHER SETUP STUFF ####################
@@ -121,9 +125,10 @@ def getRfidReading(reader, allowedIds):
 
         sleep(.05)
 
-# Change LED Based on ___
+# Change LED Based on operational status
 def setLED(rgb: RGBLED):
     # TODO Set LED based on "error" codes (temp state)
+    # green = functioning normally; red = abnomal value; blue = security re-check required soon
     pass
 
 # Unlock
@@ -131,6 +136,7 @@ def unlock():
     if button.is_active:
         print("Button Pressed")
     pass
+
 # -----------------------------------------------------
 ############################################################
 ####################### INFINITE LOOP ######################
@@ -139,24 +145,39 @@ unlocked = False
 combination = "13579"
 # TODO Replace all print statements
 while True: 
-    # !!!-- Psuedo temperature sensor reading between 50 and 55 --!!!
     # !!!-- You must use this variable name: temperature_sensor_reading --!!!
-    # !!!-- Currently, the temperature reading is just a random number for demo purposes --!!!
     currentTime = ticks_ms()
     temperature_sensor_reading = getTempC(thermistor)
     # --------------------CODE HERE-------------------------------
     # Unlock Check
     # TODO Add RFID proof to this for extra security
     if unlocked == True:
-        # OLED should display temperature data here
         if (currentTime - ticks_ms()) > (5*(60*1000)):
             # OLED should display temperature data here
-            pass
+            display.fill(0)
+            display.text(f"Temperature: {temperature_sensor_reading}", 0, 0)
+            display.show()
         else:
             # Locks after 5 minutes
             unlocked = False
     else:
-        # NOTE May need to put this in the "while" loop. The combination is specified on line 139.
+        actualCombination = ""
+        for i in range(len(combination)):
+            value = rot.value()
+            if button.is_active == False and oldButton == True:
+                actualCombination += str(value)
+            oldButton = button.is_active
+
+        if actualCombination == combination:
+            print("success")
+        else:
+            actualCombination = ""
+            print("failure")
+
+
+'''
+    else:
+        # NOTE May need to put this in the "while" loop.
         #while True:
         val_new = rot.value()
         if val_old != val_new:
@@ -173,6 +194,8 @@ while True:
                     inp = ""
         oldButton = button.is_active
         sleep(0.25)
+'''
+
     # ------------------------------------------------------------
     # Create and send MQTT payload                               # <<< DO NOT MODIFY >>>
     message_data = {                                             # <<< DO NOT MODIFY >>>
@@ -180,12 +203,12 @@ while True:
         "temperatureReading": temperature_sensor_reading         # <<< DO NOT MODIFY >>>
     }                                                            # <<< DO NOT MODIFY >>>
     message_json = json.dumps(message_data)  # Convert to JSON   # <<< DO NOT MODIFY >>>
-    
+
     # Try to publish message to MQTT broker                                    # <<< DO NOT MODIFY >>>
     try:                                                                       # <<< DO NOT MODIFY >>>
         client.publish(TOPIC, message_json, retain=True) # Send MQTT payload   # <<< DO NOT MODIFY >>>
         print(f"Published: {message_json}") # Print MQTT payload to the Shell
     except Exception as e:                                                     # <<< DO NOT MODIFY >>>
         print("Publish failed:",e)
-    
     sleep(2) # Send MQTT payload every 2 seconds
+
