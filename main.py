@@ -19,11 +19,11 @@ from ssd1306 import SSD1306_I2C
 ################# SPECIFY PINS AND OBJECTS #################
 ############################################################
 rot = RotaryIRQ(
-    pin_num_clk=12, 
-    pin_num_dt=13, 
-    min_val=0, 
-    max_val=5, 
-    reverse=False, 
+    pin_num_clk=12,
+    pin_num_dt=13,
+    min_val=0,
+    max_val=5,
+    reverse=False,
     range_mode=RotaryIRQ.RANGE_WRAP
 )
 
@@ -32,11 +32,11 @@ rotClk = Pin(18)
 button = Button(20)
 
 reader = MFRC522(spi_id=0,sck=6,miso=4,mosi=7,cs=5,rst=22)
-allowedRfids = ["placeholder"]
+allowedRfids = ["450267731"]
 
-thermistor = ADC(28) # Currently 28, could be set to whatever
+thermistor = ADC(28)
 
-led = RGBLED(6,7,8)
+led = RGBLED(10, 13, 15)
 
 # OLED object
 display_width = 128 # pixel x values = 0 to 127
@@ -71,8 +71,6 @@ while not wlan.isconnected():                               # <<< DO NOT MODIFY 
 sleep(2)  # Extra delay for stability                       # <<< DO NOT MODIFY >>>
 print("Connected to Wi-Fi!")
 
-
-
 # Connect to MQTT broker with reconnect support         # <<< DO NOT MODIFY >>>
 client = MQTTClient(f"client_{SENSOR_ID}", MQTT_BROKER) # <<< DO NOT MODIFY >>>
 client.DEBUG = True                                     # <<< DO NOT MODIFY >>>
@@ -84,6 +82,13 @@ try:                                                    # <<< DO NOT MODIFY >>>
 except Exception as e:                                  # <<< DO NOT MODIFY >>>
     print("Failed to connect to MQTT broker:", e)
 # -------------CODE HERE-------------------
+
+def showText(msg):
+    global display
+
+    display.fill(0)
+    display.text(msg, 0, 0)
+    display.show()
 
 # Thermistor and Temperature
 def getTempC(thermistor):
@@ -105,61 +110,67 @@ def getTempC(thermistor):
     tempK = 1 / (A + (B * log(Rt)) + (C * pow(log(Rt), 3)))
     return (tempK - 273.15)
 
-
 # RFID and Badge Reading
 def getRfidReading(reader, allowedIds):
-    while True:
-        reader.init()
+    reader.init()
+    start = ticks_ms()
+
+    while ticks_ms() - start < 5000:
         (status, tag_type) = reader.request(reader.REQIDL)
 
         if status == reader.OK:
             (status, uid) = reader.SelectTagSN()
+            cardId = str(int.from_bytes(bytes(uid), "little", False))
 
-        if status == reader.OK:
-            cardId = str(int.from_bytes(bytes(uid),"little",False))
-
-        if cardId in allowedIds:
-            return True
+            return cardId in allowedIds
         else:
-            return False
+            showText("Tap ID.")
 
-        sleep(.05)
+        sleep(.1)
 
+    return False
 
 def getRotaryInput(rot, combination):
+    showText("Input password.")
+
     actualCombination = ""
-    for i in range(len(combination)):
+    oldButton = False
+    start = ticks_ms()
+
+    while len(actualCombination) < len(combination):
+        if ticks_ms() - start > 15000:
+            return False
+
         value = rot.value()
-        if button.is_active == False and oldButton == True:
+
+        if button.is_pressed and not oldButton:
             actualCombination += str(value)
-        oldButton = button.is_active
-    if actualCombination == combination:
-        return True
-    else:
-        return False
+            showText(actualCombination)
+
+        oldButton = button.is_pressed
+    return actualCombination == combination
 
 # Change LED Based on operational status
-def setLED(rgb: RGBLED):
-    # TODO Set LED based on "error" codes (temp state)
-    # green = functioning normally; red = abnomal value; blue = security re-check required soon
-    pass
+def setLED(time, tempVal):
+    global led
 
-# Unlock
-def unlock():
-    if button.is_active:
-        print("Button Pressed")
-    pass
+    if (ticks_ms() - time) > (4*(60*1000)):
+        led.color = (0, 0, 255)
+    elif (tempVal > 35.0) or (tempVal < 5.0):
+        led.color = (255, 0, 0)
+    else:
+        led.color = (0, 255, 0)
 
 # -----------------------------------------------------
 ############################################################
 ####################### INFINITE LOOP ######################
 ############################################################
 unlocked = False
-combination = "13579"
-# TODO Replace all print statements
+combination = "11111"
+lastPublishTime = 0
+
 while True: 
     # !!!-- You must use this variable name: temperature_sensor_reading --!!!
-    currentTime = ticks_ms()
     temperature_sensor_reading = getTempC(thermistor)
 
     # ------------------------------------------------------------
@@ -170,34 +181,43 @@ while True:
     }                                                            # <<< DO NOT MODIFY >>>
     message_json = json.dumps(message_data)  # Convert to JSON   # <<< DO NOT MODIFY >>>
 
-    sleep(2) # Send MQTT payload every 2 seconds
-
     # --------------------CODE HERE-------------------------------
-    idCheck = getRfidReading(reader, allowedRfids)
-    passwordCheck = getRotaryInput(rot, combination)
+    # Note:
+    # Device will not transmit data while user is being prompted for ID and password.
+    # This basically means that it will not transmit unless device is unlocked.
+    # I tried to add a timeout in order to make it transmit infrequently while locked rather than not at all.
 
-    if idCheck and passwordCheck:
-        unlocked = True
-    else:
-        unlocked = False
+    if not unlocked:
+        sleep(1)
+        idCheck = getRfidReading(reader, allowedRfids)
+        passwordCheck = getRotaryInput(rot, combination)
 
-    if unlocked == True:
-        if (currentTime - ticks_ms()) > (5*(60*1000)):
-            # OLED should display temperature data here
-            display.fill(0)
-            display.text(f"Temperature: {temperature_sensor_reading}", 0, 0)
-            display.show()
+        if idCheck and passwordCheck:
+            unlocked = True
+            unlockTime = ticks_ms()
+            showText("Check passed.")
+        else:
+            unlocked = False
+            showText("Check failed.")
+
+    if unlocked:
+        if (ticks_ms() - unlockTime) < (5*(60*1000)):
+            if ticks_ms() % 1000 < 100:
+                showText(f"Temp: {temperature_sensor_reading}")
+            setLED(unlockTime, temperature_sensor_reading)
         else:
             # Locks after 5 minutes
             unlocked = False
+            showText("Locking device.")
 
-    if currentTime - ticks_ms() > 2000:
-        continue
-    else:
+    if (ticks_ms() - lastPublishTime) >= 2000:
         # Try to publish message to MQTT broker                                    # <<< DO NOT MODIFY >>>
         try:                                                                       # <<< DO NOT MODIFY >>>
             client.publish(TOPIC, message_json, retain=True) # Send MQTT payload   # <<< DO NOT MODIFY >>>
             print(f"Published: {message_json}") # Print MQTT payload to the Shell
         except Exception as e:                                                     # <<< DO NOT MODIFY >>>
             print("Publish failed:",e)
+
+        lastPublishTime = ticks_ms()
+    sleep(.1)
 
