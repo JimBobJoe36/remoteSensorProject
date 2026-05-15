@@ -18,11 +18,19 @@ from ssd1306 import SSD1306_I2C
 ############################################################
 ################# SPECIFY PINS AND OBJECTS #################
 ############################################################
+
+def showText(msg):
+    global display
+
+    display.fill(0)
+    display.text(msg, 0, 0)
+    display.show()
+
 rot = RotaryIRQ(
     pin_num_clk=12, 
     pin_num_dt=13, 
     min_val=0, 
-    max_val=5, 
+    max_val=9, 
     reverse=False, 
     range_mode=RotaryIRQ.RANGE_WRAP
 )
@@ -32,7 +40,7 @@ rotClk = Pin(18)
 button = Button(20)
 
 reader = MFRC522(spi_id=0,sck=6,miso=4,mosi=7,cs=5,rst=22)
-allowedRfids = ["placeholder"]
+allowedRfids = ["450267731"]
 
 thermistor = ADC(28) # Currently 28, could be set to whatever
 
@@ -64,12 +72,12 @@ wlan.active(True)                                           # <<< DO NOT MODIFY 
 wlan.config(pm = 0xa11140) # disable Wi-Fi low power mode   # <<< DO NOT MODIFY >>>
 wlan.connect(SSID, PASSWORD)                                # <<< DO NOT MODIFY >>>
 
-print("Attempting to connect to Wi-Fi")
+showText("Attempting to connect to Wi-Fi")
 while not wlan.isconnected():                               # <<< DO NOT MODIFY >>>
     pass                                                    # <<< DO NOT MODIFY >>>
 
 sleep(2)  # Extra delay for stability                       # <<< DO NOT MODIFY >>>
-print("Connected to Wi-Fi!")
+showText("Connected to Wi-Fi!")
 
 
 
@@ -80,9 +88,9 @@ client.DEBUG = True                                     # <<< DO NOT MODIFY >>>
 # Try to connect to MQTT broker                         # <<< DO NOT MODIFY >>>
 try:                                                    # <<< DO NOT MODIFY >>>
     client.connect()                                    # <<< DO NOT MODIFY >>>
-    print("Connected to MQTT broker!")
+    showText("Connected to MQTT broker!")
 except Exception as e:                                  # <<< DO NOT MODIFY >>>
-    print("Failed to connect to MQTT broker:", e)
+    showText("Failed to connect to MQTT broker:", e)
 # -------------CODE HERE-------------------
 
 # Thermistor and Temperature
@@ -137,20 +145,18 @@ def setLED(time, tempVal):
     else:
         led.color = (0,255,0)
 
-# Unlock
-def unlock():
-    if button.is_active:
-        print("Button Pressed")
-    pass
-
 # -----------------------------------------------------
 ############################################################
 ####################### INFINITE LOOP ######################
 ############################################################
+rotUnlocked = False
+rfidUnlocked = False
 unlocked = False
 combination = "13579"
 currentTime = ticks_ms()
-# TODO Replace all print statements
+val_old = 0
+oldButton = False
+inp = ""
 while True: 
     # !!!-- You must use this variable name: temperature_sensor_reading --!!!
     temperature_sensor_reading = getTempC(thermistor)
@@ -158,7 +164,7 @@ while True:
     # Unlock Check
     # TODO Add RFID proof to this for extra security
     if unlocked == True:
-        if (ticks_ms() - currentTime) > (5*(60*1000)):
+        if (ticks_ms() - currentTime) < (5*(60*1000)):
             # OLED should display temperature data here
             display.fill(0)
             display.text(f"Temperature: {temperature_sensor_reading}", 0, 0)
@@ -169,42 +175,39 @@ while True:
             unlocked = False
             currentTime = ticks_ms()
     else:
-        actualCombination = ""
-        for i in range(len(combination)):
-            value = rot.value()
-            if button.is_active == False and oldButton == True:
-                actualCombination += str(value)
-            oldButton = button.is_active
-
-        if actualCombination == combination:
-            print("success")
-            currentTime = ticks_ms()
-        else:
-            actualCombination = ""
-            print("failure")
-
-
-    '''
-    else:
-        # NOTE May need to put this in the "while" loop.
-        #while True:
         val_new = rot.value()
         if val_old != val_new:
             val_old = val_new
-            print('result =', val_new)
+            showText('result =', val_new)
         if button.is_active == False and oldButton == True:
-            print("Button Pressed")
+            showText(inp)
             inp += str(val_old)
             if len(inp) == len(combination):
                 if inp == combination:
-                    break
+                    rotUnlocked = True
                 else:
-                    print("Wrong combination!")
+                    showText("Wrong combination!")
                     inp = ""
         oldButton = button.is_active
         sleep(0.25)
-    '''
 
+    reader.init()
+    start = ticks_ms()
+
+
+    (status, tag_type) = reader.request(reader.REQIDL)
+
+    if status == reader.OK:
+        (status, uid) = reader.SelectTagSN()
+        cardId = str(int.from_bytes(bytes(uid), "little", False))
+        rfidUnlocked = True
+        showText("RFID Good")
+    else:
+        #showText("Tap ID.") 
+        pass
+    sleep(.1)
+    if rotUnlocked == True and rfidUnlocked == True:
+        unlocked = True
     # ------------------------------------------------------------
     # Create and send MQTT payload                               # <<< DO NOT MODIFY >>>
     message_data = {                                             # <<< DO NOT MODIFY >>>
@@ -216,8 +219,8 @@ while True:
     # Try to publish message to MQTT broker                                    # <<< DO NOT MODIFY >>>
     try:                                                                       # <<< DO NOT MODIFY >>>
         client.publish(TOPIC, message_json, retain=True) # Send MQTT payload   # <<< DO NOT MODIFY >>>
-        print(f"Published: {message_json}") # Print MQTT payload to the Shell
+        #showText(f"Published: {message_json}") # showText MQTT payload to the Shell
     except Exception as e:                                                     # <<< DO NOT MODIFY >>>
-        print("Publish failed:",e)
+        showText("Publish failed:",e)
     sleep(2) # Send MQTT payload every 2 seconds
 
