@@ -126,10 +126,16 @@ def getRfidReading(reader, allowedIds):
         sleep(.05)
 
 # Change LED Based on operational status
-def setLED(rgb: RGBLED):
+def setLED(time, tempVal):
+    global led
     # TODO Set LED based on "error" codes (temp state)
     # green = functioning normally; red = abnomal value; blue = security re-check required soon
-    pass
+    if (ticks_ms() - time) > 4000:
+        led.color = (0,0,255)
+    elif (tempVal > 30.0) or (tempVal < 5.0):
+        led.color = (255,0,0)
+    else:
+        led.color = (0,255,0)
 
 # Unlock
 def unlock():
@@ -143,23 +149,25 @@ def unlock():
 ############################################################
 unlocked = False
 combination = "13579"
+currentTime = ticks_ms()
 # TODO Replace all print statements
 while True: 
     # !!!-- You must use this variable name: temperature_sensor_reading --!!!
-    currentTime = ticks_ms()
     temperature_sensor_reading = getTempC(thermistor)
     # --------------------CODE HERE-------------------------------
     # Unlock Check
     # TODO Add RFID proof to this for extra security
     if unlocked == True:
-        if (currentTime - ticks_ms()) > (5*(60*1000)):
+        if (ticks_ms() - currentTime) > (5*(60*1000)):
             # OLED should display temperature data here
             display.fill(0)
             display.text(f"Temperature: {temperature_sensor_reading}", 0, 0)
             display.show()
+            setLED(currentTime, temperature_sensor_reading)
         else:
             # Locks after 5 minutes
             unlocked = False
+            currentTime = ticks_ms()
     else:
         actualCombination = ""
         for i in range(len(combination)):
@@ -170,12 +178,13 @@ while True:
 
         if actualCombination == combination:
             print("success")
+            currentTime = ticks_ms()
         else:
             actualCombination = ""
             print("failure")
 
 
-'''
+    '''
     else:
         # NOTE May need to put this in the "while" loop.
         #while True:
@@ -194,7 +203,7 @@ while True:
                     inp = ""
         oldButton = button.is_active
         sleep(0.25)
-'''
+    '''
 
     # ------------------------------------------------------------
     # Create and send MQTT payload                               # <<< DO NOT MODIFY >>>
